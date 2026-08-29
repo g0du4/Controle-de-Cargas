@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistemas Integrados - Frete, Matriz & Conferência</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+        <link rel="icon" href="https://images.icon-icons.com/724/PNG/256/speech-balloon-orange-d256_icon-icons.com_62608.png" sizes="32x32">
+
+         <link rel="stylesheet" href="style.css">
+         
+
+    
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="sidebar-trigger"><span class="text-vertical">MENU</span></div>
+    <nav class="sidebar-menu flex flex-col p-6 text-white">
+        <h2 class="text-2xl font-bold mb-8 border-b border-blue-800 pb-4">Meus Sistemas</h2>
+        <ul class="space-y-4 flex-grow">
+            <li>
+                <button onclick="switchApp('frete')" class="w-full flex items-center gap-3 text-left p-4 bg-blue-800 hover:bg-blue-700 rounded-lg font-medium transition shadow-sm">
+                    <span class="text-xl">🚛</span> <span>Calculador de Frete</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="switchApp('matriz')" class="w-full flex items-center gap-3 text-left p-4 bg-blue-800 hover:bg-blue-700 rounded-lg font-medium transition shadow-sm">
+                    <span class="text-xl">✅</span> <span>Matriz Checklist</span>
+                </button>
+            </li>
+            <li>
+                <button onclick="switchApp('conferencia')" class="w-full flex items-center gap-3 text-left p-4 bg-blue-800 hover:bg-blue-700 rounded-lg font-medium transition shadow-sm">
+                    <span class="text-xl">⚖️</span> <span>Conferência de Carga</span>
+                </button>
+            </li>
+        </ul>
+        <div class="mt-auto pt-8 text-center text-blue-400 text-xs opacity-70">Passe o mouse no canto esquerdo<br>para abrir o menu.</div>
+    </nav>
+
+    <div id="app-frete" class="p-4 md:p-8 pl-12 md:pl-16"> 
+        <div class="max-w-6xl mx-auto space-y-6">
+            <header class="bg-blue-700 text-white p-6 rounded-xl shadow-md text-center">
+                <h1 class="text-2xl font-bold">Sistema de Rateio de Frete Proporcional</h1>
+                <p class="text-blue-100 text-sm mt-1">Gerenciamento dinâmico e inserção direta em linha</p>
+            </header>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-center bg-gray-50 p-4 rounded-xl border border-gray-100">
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-gray-500 mb-1.5">🚛 Tipo de Carreta</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="border bg-white p-2 rounded-lg text-center cursor-pointer block hover:bg-gray-50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 text-sm shadow-sm">
+                                <input type="radio" name="carretaType" value="p28" checked onchange="calculateFrete()" class="hidden">
+                                <span class="block font-semibold text-gray-800">28 Paletes</span>
+                            </label>
+                            <label class="border bg-white p-2 rounded-lg text-center cursor-pointer block hover:bg-gray-50 has-[:checked]:border-blue-600 has-[:checked]:bg-blue-50 text-sm shadow-sm">
+                                <input type="radio" name="carretaType" value="p24" onchange="calculateFrete()" class="hidden">
+                                <span class="block font-semibold text-gray-800">24 Paletes</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm h-full flex flex-col justify-center">
+                        <span class="text-xs text-gray-400 block uppercase font-bold">Peso Total Carga</span>
+                        <span id="totalWeightDisplay" class="text-xl font-bold text-gray-800">0 KG</span>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-gray-200 shadow-sm h-full flex flex-col justify-center">
+                        <span class="text-xs text-gray-400 block uppercase font-bold">Total Distribuído</span>
+                        <span id="totalDistributedDisplay" class="text-xl font-bold text-green-700">R$ 0,00</span>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2"><span>📊</span> Notas Fiscais e Detalhamento da Viagem</h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead class="text-xs uppercase bg-gray-100 text-gray-700 border-b">
+                                <tr>
+                                    <th class="p-3 w-1/6">Nota</th>
+                                    <th class="p-3 w-1/4">Município Destino</th>
+                                    <th class="p-3 w-1/4">Lugar / Cliente</th>
+                                    <th class="p-3 w-1/6">Peso (KG)</th>
+                                    <th class="p-3 text-right w-1/6">Valor do Frete</th>
+                                    <th class="p-3 text-center w-24">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="notesTableBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mt-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-2 flex items-center gap-2"><span>⚙️</span> Gerenciar Municípios</h2>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 border-t pt-4">
+                    <div class="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                        <h3 class="font-semibold text-gray-700 mb-3 text-sm uppercase">➕ Cadastrar Novo</h3>
+                        <div class="space-y-3">
+                            <input type="text" id="newCityName" placeholder="Município" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white outline-none">
+                            <input type="number" id="newCityP28" placeholder="Valor 28 Paletes" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white outline-none">
+                            <input type="number" id="newCityP24" placeholder="Valor 24 Paletes" class="w-full text-sm border border-gray-300 rounded-lg p-2 bg-white outline-none">
+                            <button onclick="addNewCity()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-2 rounded-lg transition shadow-sm">Salvar</button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2 overflow-x-auto">
+                        <h3 class="font-semibold text-gray-700 mb-3 text-sm uppercase">📝 Cidades Cadastradas</h3>
+                        <table class="w-full text-xs text-left text-gray-600">
+                            <thead class="bg-gray-100 text-gray-700 uppercase font-bold border-b">
+                                <tr>
+                                    <th class="p-2">Município</th>
+                                    <th class="p-2">Frete 28P (R$)</th>
+                                    <th class="p-2">Frete 24P (R$)</th>
+                                    <th class="p-2 text-center">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminCitiesTableBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <div id="app-matriz">
+        <div class="matriz-container">
+            <h2>Matriz Checklist & Acompanhamento</h2>
+
+            <div class="matrix-wrapper">
+                <table id="matrizEscada">
+                    <thead>
+                        <tr id="linhaTitulos" class="header-text-row">
+                            <th>Itens / Processos</th>
+                            <th style="width: 50px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoMatriz">
+                        </tbody>
+                </table>
+            </div>
+                        <div class="matriz-controls">
+                <button class="matriz-btn matriz-btn-primary" onclick="matrizAdicionarColuna()">+ Adicionar Coluna</button>
+                <button class="matriz-btn matriz-btn-primary" onclick="matrizAdicionarLinha()">+ Adicionar Linha</button>
+                <button class="matriz-btn matriz-btn-danger" onclick="matrizZerarTudo()">✕ Zerar Tudo</button>
+            </div>
+        </div>
+
+        <div id="modalLegenda" class="modal-overlay">
+            <div class="modal-card">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Configurar Coluna</h3>
+                    <button class="close-modal" onclick="matrizFecharModal()">✕</button>
+                </div>
+                
+                <div style="border-bottom: 1px solid var(--matriz-border); padding-bottom: 15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label for="modalNome">Nome:</label>
+                        <input type="text" id="modalNome" placeholder="Nome do Cliente / Local">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalNF">NF:</label>
+                        <input type="text" id="modalNF" placeholder="Número da Nota">
+                    </div>
+                    <div class="form-group">
+                        <label for="modalKG">KG:</label>
+                        <input type="number" id="modalKG" placeholder="Peso em KG" step="any">
+                    </div>
+                    
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: bold; color: var(--matriz-success); margin-top: 15px; cursor: pointer; padding: 10px; background: #f0fdf4; border-radius: 8px; border: 1px dashed #6ee7b7;">
+                        <input type="checkbox" id="modalIncluirFrete" style="width: 18px; height: 18px; accent-color: var(--matriz-success);">
+                        Concluído — Incluir no Frete
+                    </label>
+                </div>
+
+                <div id="listaLegendas" class="legend-list"></div>
+                <div style="display: flex; justify-content: space-between; margin-top: 15px;">
+                    <button class="matriz-btn" onclick="matrizAdicionarCampoLegenda()">+ Adicionar Legenda</button>
+                    <button class="matriz-btn matriz-btn-primary" onclick="matrizSalvarEFecharModal()">Salvar e Fechar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-conferencia">
+        <div id="app"></div>
+    </div>
+    
+<script src="script.js"></script>
+  
+</body>
+</html>
