@@ -486,7 +486,7 @@
   function computeTotals(conf) {
     var map = {};
     function ensure(key) {
-      if (!map[key]) map[key] = { produto: key, totalNota: 0, totalConferencia: 0 };
+      if (!map[key]) map[key] = { produto: key, totalNota: 0, totalConferencia: 0, totalRequisicao: 0 };
       return map[key];
     }
     conf.notas.forEach(function (n) {
@@ -495,20 +495,22 @@
       });
     });
     conf.pesagens.forEach(function (p) {
-      ensure(p.produto || 'OUTRAS').totalConferencia += parseNum(p.caixas) * parseNum(p.pesoCaixa);
+      var bucket = ensure(p.produto || 'OUTRAS');
+      bucket.totalConferencia += parseNum(p.caixas) * parseNum(p.pesoCaixa);
+      if (p.conferida) bucket.totalRequisicao += parseNum(p.caixas) * parseNum(p.pesoCaixa);
     });
     var out = Object.keys(map).map(function (k) {
       var r = map[k];
-      return { produto: r.produto, totalNota: r.totalNota, totalConferencia: r.totalConferencia, diff: r.totalConferencia - r.totalNota };
+      return { produto: r.produto, totalNota: r.totalNota, totalConferencia: r.totalConferencia, totalRequisicao: r.totalRequisicao, diff: r.totalConferencia - r.totalNota };
     });
     out.sort(function (a, b) { return a.produto.localeCompare(b.produto, 'pt-BR'); });
     return out;
   }
   function grandTotals(conf) {
     var totals = computeTotals(conf);
-    var gn = 0, gc = 0;
-    totals.forEach(function (t) { gn += t.totalNota; gc += t.totalConferencia; });
-    return { nota: gn, conferencia: gc, diff: gc - gn };
+    var gn = 0, gc = 0, gr = 0;
+    totals.forEach(function (t) { gn += t.totalNota; gc += t.totalConferencia; gr += t.totalRequisicao; });
+    return { nota: gn, conferencia: gc, requisicao: gr, diff: gc - gn };
   }
   function conferenceStatus(conf) {
     var totals = computeTotals(conf);
@@ -778,7 +780,7 @@
 
     html += '<div class="fcf-two-col">';
     html += '<div>';
-    html += '<div class="fcf-section-title">Notas (' + conf.notas.length + ')</div>';
+    html += '<div class="fcf-section-title">Notas (<span id="notas-count">' + conf.notas.length + '</span>)</div>';
     html += '<div id="add-nota-area">' + renderAddNotaFormHTML(conf) + '</div>';
     html += '<div id="notas-list" style="margin-top:14px;">' + renderNotasListHTML(conf) + '</div>';
     html += '</div>';
@@ -799,6 +801,7 @@
       '<div class="fcf-resumo-item"><div class="fcf-resumo-label">Total nota</div><div class="fcf-resumo-value">' + formatKg(g.nota) + ' kg</div></div>' +
       '<div class="fcf-resumo-item"><div class="fcf-resumo-label">Total conferência</div><div class="fcf-resumo-value">' + formatKg(g.conferencia) + ' kg</div></div>' +
       '<div class="fcf-resumo-item"><div class="fcf-resumo-label">Diferença geral</div><div class="fcf-resumo-value ' + diffClass + '">' + diffText + '</div></div>' +
+      '<div class="fcf-resumo-item"><div class="fcf-resumo-label">Total conferida</div><div class="fcf-resumo-value">' + formatKg(g.requisicao) + ' kg</div></div>' +
       '</div>';
   }
   function renderTotalsSectionHTML(conf) {
@@ -809,7 +812,7 @@
       html += '<div class="fcf-empty-notas" style="margin-top:12px;">Adicione notas e pesagens para ver os totais por produto.</div>';
     } else {
       html += '<div class="fcf-table-wrap" style="margin-top:14px;"><table class="fcf-table"><thead><tr>' +
-        '<th>Produto</th><th class="num">Nota (kg)</th><th class="num">Conferência (kg)</th><th class="num">Diferença</th><th>Balanço</th>' +
+        '<th>Produto</th><th class="num">Nota (kg)</th><th class="num">Conferência (kg)</th><th class="num">Diferença</th><th>Balanço</th><th class="num">Conferida (kg)</th>' +
         '</tr></thead><tbody>';
       for (var i = 0; i < totals.length; i++) {
         var t = totals[i];
@@ -817,7 +820,8 @@
           '<td class="mono">' + formatKg(t.totalNota) + '</td>' +
           '<td class="mono">' + formatKg(t.totalConferencia) + '</td>' +
           '<td class="mono">' + diffLabelHTML(t.diff) + '</td>' +
-          '<td>' + balanceHTML(t.diff, t.totalNota) + '</td></tr>';
+          '<td>' + balanceHTML(t.diff, t.totalNota) + '</td>' +
+          '<td class="mono">' + formatKg(t.totalRequisicao) + '</td></tr>';
       }
       html += '</tbody></table></div>';
     }
@@ -845,13 +849,13 @@
   }
   function renderNotaCardInnerHTML(nota) {
     var html = '<div class="fcf-nota-header">';
-    html += '<input class="fcf-input" style="font-weight:600;max-width:200px;" data-field="nota-numero" data-nota-id="' + nota.id + '" value="' + escapeHtml(nota.numero) + '">';
+    html += '<input class="fcf-input" style="font-weight:600;max-width:150px;" data-field="nota-numero" data-nota-id="' + nota.id + '" value="' + escapeHtml(nota.numero) + '">';
     html += '<input class="fcf-input fcf-input-mono" type="date" data-field="nota-data" data-nota-id="' + nota.id + '" value="' + escapeHtml(nota.data) + '">';
     html += '<button class="fcf-icon-btn" style="margin-left:auto;" data-action="delete-nota" data-nota-id="' + nota.id + '" aria-label="Excluir nota">' + icon('trash', 14) + '</button>';
     html += '</div><div class="fcf-nota-body">';
     if (nota.itens.length > 0) {
       html += '<div class="fcf-table-wrap" style="margin-bottom:12px;"><table class="fcf-table"><thead><tr>' +
-        '<th>Produto</th><th class="num">Qtd (kg)</th><th></th>' +
+        '<th>Produto</th><th class="num">Nota (kg)</th><th></th>' +
         '</tr></thead><tbody>';
       for (var i = 0; i < nota.itens.length; i++) html += renderItemRowHTML(nota.id, nota.itens[i]);
       html += '</tbody></table></div>';
@@ -883,7 +887,7 @@
     var html = '';
     if (conf.pesagens.length > 0) {
       html += '<div class="fcf-table-wrap" style="margin-bottom:12px;"><table class="fcf-table"><thead><tr>' +
-        '<th>Produto</th><th class="num">Caixas</th><th class="num">Peso cx (kg)</th><th class="num">Total (kg)</th><th></th>' +
+        '<th>Produto</th><th class="num">Caixas</th><th class="num">Peso cx (kg)</th><th class="num">Total (kg)</th><th></th><th style="text-align:center;">Conferida</th>' +
         '</tr></thead><tbody>';
       var list = conf.pesagens.slice().reverse();
       for (var i = 0; i < list.length; i++) html += renderPesagemRowHTML(list[i]);
@@ -894,12 +898,14 @@
   }
   function renderPesagemRowHTML(p) {
     var total = parseNum(p.caixas) * parseNum(p.pesoCaixa);
+    var conferida = !!p.conferida;
     return '<tr>' +
       '<td>' + escapeHtml(p.produto) + '</td>' +
       '<td class="mono"><input class="fcf-input fcf-input-mono fcf-qty-input" data-field="pes-caixas" data-pesagem-id="' + p.id + '" value="' + escapeHtml(p.caixas) + '"></td>' +
       '<td class="mono"><input class="fcf-input fcf-input-mono fcf-qty-input" data-field="pes-peso" data-pesagem-id="' + p.id + '" value="' + escapeHtml(p.pesoCaixa) + '"></td>' +
       '<td class="mono total-cell">' + formatKg(total) + '</td>' +
       '<td><button class="fcf-icon-btn" data-action="delete-pesagem" data-pesagem-id="' + p.id + '" aria-label="Remover pesagem">' + icon('trash', 13) + '</button></td>' +
+      '<td style="text-align:center;"><input type="checkbox" class="fcf-checkbox" data-field="pes-conferida" data-pesagem-id="' + p.id + '" title="Marcar como conferida" aria-label="Marcar como conferida"' + (conferida ? ' checked' : '') + '></td>' +
       '</tr>';
   }
   function renderAddPesagemFormHTML() {
@@ -982,6 +988,8 @@
       document.getElementById('add-nota-area').innerHTML = renderAddNotaFormHTML(conf3);
       document.getElementById('notas-list').innerHTML = renderNotasListHTML(conf3);
       document.getElementById('totals-section').innerHTML = renderTotalsSectionHTML(conf3);
+      var notasCountEl = document.getElementById('notas-count');
+      if (notasCountEl) notasCountEl.textContent = conf3.notas.length;
     } else if (action === 'delete-nota') {
       if (!confirm('Excluir esta nota e todos os itens dela?')) return;
       var confN = getActiveConf();
@@ -990,6 +998,8 @@
       saveState();
       document.getElementById('notas-list').innerHTML = renderNotasListHTML(confN);
       document.getElementById('totals-section').innerHTML = renderTotalsSectionHTML(confN);
+      var notasCountElD = document.getElementById('notas-count');
+      if (notasCountElD) notasCountElD.textContent = confN.notas.length;
     } else if (action === 'add-item') {
       var confI = getActiveConf();
       var notaIdI = el.getAttribute('data-nota-id');
@@ -1031,7 +1041,7 @@
       var peso = pesoInp.value;
       if (caixas === '' && peso === '') return;
       var labelP = isOutrasP ? ((customInpP.value || '').trim().toUpperCase() || 'OUTRAS') : produtoP;
-      confP.pesagens.push({ id: uid('pes'), produto: labelP, caixas: caixas, pesoCaixa: peso });
+      confP.pesagens.push({ id: uid('pes'), produto: labelP, caixas: caixas, pesoCaixa: peso, conferida: false });
       saveState();
       document.getElementById('pesagens-area').innerHTML = renderPesagensSectionHTML(confP);
       document.getElementById('totals-section').innerHTML = renderTotalsSectionHTML(confP);
@@ -1068,6 +1078,13 @@
       var customInpP = rowP.querySelector('[data-role="pesagem-custom"]');
       if (el.value === 'OUTRAS') { customInpP.classList.remove('fcf-hidden'); customInpP.focus(); }
       else { customInpP.classList.add('fcf-hidden'); customInpP.value = ''; }
+    } else if (el.matches('[data-field="pes-conferida"]')) {
+      var confC = getActiveConf();
+      var pesC = getPesagem(confC, el.getAttribute('data-pesagem-id'));
+      pesC.conferida = el.checked;
+      var totalsSectionC = document.getElementById('totals-section');
+      if (totalsSectionC) totalsSectionC.innerHTML = renderTotalsSectionHTML(confC);
+      scheduleSave();
     }
   }
 
